@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Moq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HybridCache.Tests;
 
@@ -9,20 +10,28 @@ public class HybridCacheTests
 {
     private const string cacheKey = "Test:Cache";
 
-    private Mock<IMemoryCache> _memoryCacheMock;
+    private readonly IMemoryCache _memoryCache;
     private Mock<IRedisCache> _redisCacheMock;
     private Mock<IDataStorage> _dataStorageMock;
 
     private HybridCache _hybridCache;
 
+    public HybridCacheTests()
+    {
+        var services = new ServiceCollection();
+        services.AddMemoryCache();
+        var serviceProvider = services.BuildServiceProvider();
+
+        _memoryCache = serviceProvider.GetService<IMemoryCache>();
+    }
+
     [TestInitialize]
     public void Init()
     {
-        _memoryCacheMock = new Mock<IMemoryCache>();
         _redisCacheMock = new Mock<IRedisCache>();
         _dataStorageMock = new Mock<IDataStorage>();
 
-        _hybridCache = new HybridCache(_memoryCacheMock.Object, _redisCacheMock.Object);
+        _hybridCache = new HybridCache(_memoryCache, _redisCacheMock.Object);
     }
 
     [TestMethod]
@@ -30,9 +39,7 @@ public class HybridCacheTests
     {
         // Arrange
         object cachedValue = "42";
-        _memoryCacheMock
-            .Setup(mc => mc.TryGetValue(cacheKey, out cachedValue))
-            .Returns(true);
+        _memoryCache.Set(cacheKey, cachedValue);
 
         // Act
         var resultValue = await _hybridCache
@@ -42,7 +49,6 @@ public class HybridCacheTests
 
         // Assert
         resultValue.Should().Be(cachedValue);
-        _memoryCacheMock.Verify(mc => mc.TryGetValue(cacheKey, out It.Ref<object>.IsAny), Times.Once);
         _redisCacheMock.Verify(
             rc => rc.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny),
             Times.Never);
@@ -56,12 +62,11 @@ public class HybridCacheTests
     {
         // Arrange
         object cachedValue = "42";
-        _memoryCacheMock
-            .Setup(mc => mc.TryGetValue(cacheKey, out It.Ref<object>.IsAny))
-            .Returns(false);
+
         _redisCacheMock
             .Setup(rc => rc.TryGetValue(cacheKey, out cachedValue))
-            .ReturnsAsync(true);
+            .ReturnsAsync(true)
+            .Verifiable(Times.Once);
 
         // Act
         var resultValue = await _hybridCache.GetOrAddAsync(cacheKey,
@@ -69,30 +74,29 @@ public class HybridCacheTests
 
         // Assert
         resultValue.Should().Be(cachedValue);
-
-        _memoryCacheMock.Verify(mc => mc.TryGetValue(cacheKey, out It.Ref<object>.IsAny), Times.Once);
-        _redisCacheMock.Verify(
-            rc => rc.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny),
-            Times.Once);
+        _memoryCache.TryGetValue(cacheKey, out cachedValue).Should().BeTrue();
+        _redisCacheMock.Verify();
         _dataStorageMock.Verify(
             ds => ds.TryGetValueByUuid(It.IsAny<string>()),
             Times.Never);
     }
+
 
     [TestMethod]
     public async Task ShouldReturnValueFromDataStorage_WhenValueDoesNotExistNeitherInMemoryCacheNorInRedis()
     {
         // Arrange
         object valueFromDataStorage = "42";
-        _memoryCacheMock
-            .Setup(mc => mc.TryGetValue(cacheKey, out It.Ref<object>.IsAny))
-            .Returns(false);
         _redisCacheMock
             .Setup(rc => rc.TryGetValue(cacheKey, out It.Ref<object>.IsAny))
-            .ReturnsAsync(false);
+            .ReturnsAsync(false).Verifiable(Times.Once);
+        _redisCacheMock
+            .Setup(rc => rc.Set(cacheKey, valueFromDataStorage))
+            .Verifiable(Times.Once);
         _dataStorageMock
             .Setup(ds => ds.TryGetValueByUuid(It.IsAny<string>()))
-            .Returns(valueFromDataStorage);
+            .Returns(valueFromDataStorage)
+            .Verifiable(Times.Once);
 
         // Act
         var resultValue = await _hybridCache.GetOrAddAsync(cacheKey,
@@ -100,13 +104,8 @@ public class HybridCacheTests
 
         // Assert
         resultValue.Should().Be(valueFromDataStorage);
-
-        _memoryCacheMock.Verify(mc => mc.TryGetValue(cacheKey, out It.Ref<object>.IsAny), Times.Once);
-        _redisCacheMock.Verify(
-            rc => rc.TryGetValue(It.IsAny<object>(), out It.Ref<object>.IsAny),
-            Times.Once);
-        _dataStorageMock.Verify(
-            ds => ds.TryGetValueByUuid(It.IsAny<string>()),
-            Times.Once);
+        _memoryCache.TryGetValue(cacheKey, out valueFromDataStorage).Should().BeTrue();
+        _redisCacheMock.Verify();
+        _dataStorageMock.Verify();
     }
 }
