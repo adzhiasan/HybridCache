@@ -1,3 +1,4 @@
+using HybridCache;
 using Microsoft.EntityFrameworkCore;
 using Services;
 
@@ -7,6 +8,13 @@ var services = builder.Services;
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 services.AddDbContext<AppDbContext>(x => x.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
+
+services.AddSelfWrittenHybridCache(
+    options =>
+    {
+        options.Configuration = "localhost";
+        options.InstanceName = "local";
+    });
 
 var app = builder.Build();
 

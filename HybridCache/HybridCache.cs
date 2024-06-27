@@ -4,20 +4,21 @@ namespace HybridCache;
 
 public class HybridCache(
     IMemoryCache memoryCache,
-    IRedisCache redisCache)
+    IRedisCacheAdapter redisCache)
 {
-    public async Task<object> GetOrAddAsync(object key, Func<object> itemProvider)
+    public object? GetOrAdd(string key, Func<object> itemProvider)
     {
-        if (memoryCache.TryGetValue(key, out var obj)) 
-            return obj;
-        if (await redisCache.TryGetValue(key, out obj))
+        if (memoryCache.TryGetValue(key, out var value))
+            return value;
+        if (redisCache.TryGetValue(key, out value))
         {
-            memoryCache.Set(key, obj);
-            return obj;
+            memoryCache.Set(key, value);
+            return value;
         }
-        obj = itemProvider();
-        memoryCache.Set(key, obj);
-        redisCache.Set(key, obj);
-        return obj;
+
+        value = itemProvider();
+        memoryCache.Set(key, value);
+        redisCache.Set(key, value);
+        return value;
     }
 }

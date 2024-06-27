@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
-using Moq;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
 namespace HybridCache.Tests;
 
@@ -11,7 +11,7 @@ public class HybridCacheTests
     private const string cacheKey = "Test:Cache";
 
     private readonly IMemoryCache _memoryCache;
-    private Mock<IRedisCache> _redisCacheMock;
+    private Mock<IRedisCacheAdapter> _redisCacheMock;
     private Mock<IDataStorage> _dataStorageMock;
 
     private HybridCache _hybridCache;
@@ -28,22 +28,22 @@ public class HybridCacheTests
     [TestInitialize]
     public void Init()
     {
-        _redisCacheMock = new Mock<IRedisCache>();
+        _redisCacheMock = new Mock<IRedisCacheAdapter>();
         _dataStorageMock = new Mock<IDataStorage>();
 
         _hybridCache = new HybridCache(_memoryCache, _redisCacheMock.Object);
     }
 
     [TestMethod]
-    public async Task ShouldReturnValueFromMemoryCache_WhenValueWithTargetKeyExistsThere()
+    public void ShouldReturnValueFromMemoryCache_WhenValueWithTargetKeyExistsThere()
     {
         // Arrange
         object cachedValue = "42";
         _memoryCache.Set(cacheKey, cachedValue);
 
         // Act
-        var resultValue = await _hybridCache
-            .GetOrAddAsync(
+        var resultValue = _hybridCache
+            .GetOrAdd(
                 cacheKey,
                 () => _dataStorageMock.Object.TryGetValueByUuid(Guid.NewGuid().ToString()));
 
@@ -52,18 +52,18 @@ public class HybridCacheTests
     }
 
     [TestMethod]
-    public async Task ShouldReturnValueFromRedisCache_WhenValueWithTargetKeyDoesNotExistInMemoryCache()
+    public void ShouldReturnValueFromRedisCache_WhenValueWithTargetKeyDoesNotExistInMemoryCache()
     {
         // Arrange
         object cachedValue = "42";
 
         _redisCacheMock
             .Setup(rc => rc.TryGetValue(cacheKey, out cachedValue))
-            .ReturnsAsync(true)
+            .Returns(true)
             .Verifiable(Times.Once);
 
         // Act
-        var resultValue = await _hybridCache.GetOrAddAsync(cacheKey,
+        var resultValue = _hybridCache.GetOrAdd(cacheKey,
             () => _dataStorageMock.Object.TryGetValueByUuid(Guid.NewGuid().ToString()));
 
         // Assert
@@ -77,13 +77,13 @@ public class HybridCacheTests
 
 
     [TestMethod]
-    public async Task ShouldReturnValueFromDataStorage_WhenValueDoesNotExistNeitherInMemoryCacheNorInRedis()
+    public void ShouldReturnValueFromDataStorage_WhenValueDoesNotExistNeitherInMemoryCacheNorInRedis()
     {
         // Arrange
         object valueFromDataStorage = "42";
         _redisCacheMock
             .Setup(rc => rc.TryGetValue(cacheKey, out It.Ref<object>.IsAny))
-            .ReturnsAsync(false).Verifiable(Times.Once);
+            .Returns(false).Verifiable(Times.Once);
         _redisCacheMock
             .Setup(rc => rc.Set(cacheKey, valueFromDataStorage))
             .Verifiable(Times.Once);
@@ -93,7 +93,7 @@ public class HybridCacheTests
             .Verifiable(Times.Once);
 
         // Act
-        var resultValue = await _hybridCache.GetOrAddAsync(cacheKey,
+        var resultValue = _hybridCache.GetOrAdd(cacheKey,
             () => _dataStorageMock.Object.TryGetValueByUuid(Guid.NewGuid().ToString()));
 
         // Assert
@@ -104,12 +104,12 @@ public class HybridCacheTests
     }
 
     [TestMethod]
-    public async Task ShouldReturnNull_WhenValueDoesNotExistAnywhere()
+    public void ShouldReturnNull_WhenValueDoesNotExistAnywhere()
     {
         // Arrange
         _redisCacheMock
             .Setup(rc => rc.TryGetValue(cacheKey, out It.Ref<object>.IsAny))
-            .ReturnsAsync(false)
+            .Returns(false)
             .Verifiable(Times.Once);
         _redisCacheMock
             .Setup(rc => rc.Set(cacheKey, null))
@@ -118,9 +118,9 @@ public class HybridCacheTests
             .Setup(ds => ds.TryGetValueByUuid(It.IsAny<string>()))
             .Returns(null)
             .Verifiable(Times.Once);
-        
+
         // Act
-        var resultValue = await _hybridCache.GetOrAddAsync(cacheKey,
+        var resultValue = _hybridCache.GetOrAdd(cacheKey,
             () => _dataStorageMock.Object.TryGetValueByUuid(Guid.NewGuid().ToString()));
 
         // Assert
@@ -129,7 +129,5 @@ public class HybridCacheTests
         cachedValue.Should().BeNull();
         _redisCacheMock.Verify();
         _dataStorageMock.Verify();
-        
     }
-    
 }
