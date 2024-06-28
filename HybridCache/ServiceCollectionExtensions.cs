@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddMemoryCache()
             .AddSingleton<IRedisCacheAdapter, RedisCacheAdapter>()
+            .AddSingleton<IHybridCache, HybridCache>()
             .AddStackExchangeRedisCache(redisSetupAction);
     }
 }
