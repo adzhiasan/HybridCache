@@ -9,7 +9,7 @@ public interface IRedisCacheAdapter
     Task SetAsync(string key, object? value, TimeSpan ttl);
 }
 
-internal class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCacheAdapter
+public class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCacheAdapter
 {
     public bool TryGetValue<T>(string key, out T? value)
     {
