@@ -2,5 +2,5 @@ namespace HybridCache;
 
 public interface IDataStorage
 {
-    object TryGetValueByUuid(string id);
+    Task<object> TryGetValueByUuidAsync(string id);
 }
