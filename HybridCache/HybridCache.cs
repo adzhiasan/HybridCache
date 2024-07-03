@@ -6,7 +6,7 @@ public class HybridCache(
     IMemoryCache memoryCache,
     IRedisCacheAdapter redisCache) : IHybridCache
 {
-    public T? GetOrAdd<T>(string key, Func<T?> itemProvider, TimeSpan ttl)
+    public async Task<T?> GetOrAddAsync<T>(string key, Func<Task<T?>> itemProvider, TimeSpan ttl)
     {
         if (memoryCache.TryGetValue(key, out T? value))
             return value;
@@ -16,9 +16,9 @@ public class HybridCache(
             return value;
         }
 
-        value = itemProvider();
+        value = await itemProvider();
         memoryCache.Set(key, value, ttl);
-        redisCache.SetAsync(key, value, ttl);
+        await redisCache.SetAsync(key, value, ttl);
         return value;
     }
 }

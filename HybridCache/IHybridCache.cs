@@ -2,5 +2,5 @@
 
 public interface IHybridCache
 {
-    T? GetOrAdd<T>(string key, Func<T?> itemProvider, TimeSpan ttl);
+    Task<T?> GetOrAddAsync<T>(string key, Func<Task<T?>> itemProvider, TimeSpan ttl);
 }

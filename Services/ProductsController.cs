@@ -14,26 +14,22 @@ public class ProductsController : ControllerBase
         _dbContext = dbContext;
         _hybridCache = hybridCache;
     }
-    
+
     [HttpGet("/products")]
-    public IEnumerable<Product>? GetProducts(int storeId)
+    public async Task<IEnumerable<Product>?> GetProductsAsync(int storeId)
     {
-        var products = _hybridCache.GetOrAdd(
+        return await _hybridCache.GetOrAddAsync(
             $"products-{storeId}",
-            () => _dbContext.Products.Where(x => x.Store.Id == storeId).Include(x => x.Store).ToList(),
+            async () => await _dbContext.Products.Where(x => x.Store.Id == storeId).Include(x => x.Store).ToListAsync(),
             TimeSpan.FromSeconds(10));
-        
-        return products;
     }
-    
+
     [HttpGet("/stores")]
-    public IEnumerable<Store>? GetStores()
+    public async Task<IEnumerable<Store>?> GetStoresAsync()
     {
-        var stores = _hybridCache.GetOrAdd(
+        return await _hybridCache.GetOrAddAsync(
             "stores",
-            () => _dbContext.Stores.ToList(),
+            async () => await _dbContext.Stores.ToListAsync(),
             TimeSpan.FromSeconds(10));
-        
-        return stores;
     }
 }
