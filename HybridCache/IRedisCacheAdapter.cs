@@ -6,7 +6,7 @@ namespace HybridCache;
 public interface IRedisCacheAdapter
 {
     bool TryGetValue<T>(string key, out T? value);
-    void Set(string key, object? value, TimeSpan ttl);
+    Task SetAsync(string key, object? value, TimeSpan ttl);
 }
 
 internal class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCacheAdapter
@@ -28,17 +28,18 @@ internal class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCac
         }
     }
 
-    public void Set(string key, object? value, TimeSpan ttl)
+    public async Task SetAsync(string key, object? value, TimeSpan ttl)
     {
         if (value == null)
         {
-            distributedCache.SetString(key, "__NULL__");
+            await distributedCache.SetStringAsync(key, "__NULL__",
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl });
         }
         else
         {
             var serializedValue = JsonSerializer.Serialize(value);
-            distributedCache.SetStringAsync(key, serializedValue,
-                new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = ttl });
+            await distributedCache.SetStringAsync(key, serializedValue,
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl });
         }
     }
 }

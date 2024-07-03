@@ -18,7 +18,7 @@ public class HybridCache(
 
         value = itemProvider();
         memoryCache.Set(key, value, ttl);
-        redisCache.Set(key, value, ttl);
+        redisCache.SetAsync(key, value, ttl);
         return value;
     }
 }
