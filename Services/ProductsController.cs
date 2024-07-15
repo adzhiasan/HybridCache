@@ -16,9 +16,9 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("/products")]
-    public async Task<IEnumerable<Product>?> GetProductsAsync(int storeId)
+    public Task<List<Product>?> GetProductsAsync(int storeId)
     {
-        return await _hybridCache.GetOrAddAsync(
+        return _hybridCache.GetOrAddAsync(
             $"products-{storeId}",
             async () => await _dbContext.Products.Where(x => x.Store.Id == storeId).Include(x => x.Store).ToListAsync(),
             TimeSpan.FromSeconds(10));
