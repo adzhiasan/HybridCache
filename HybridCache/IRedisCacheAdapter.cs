@@ -23,8 +23,17 @@ public class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCache
                 value = default;
                 return true;
             default:
-                value = JsonSerializer.Deserialize<T?>(cachedValue);
-                return true;
+                try
+                {
+                    value = JsonSerializer.Deserialize<T?>(cachedValue);
+                    return true;
+                }
+                catch
+                {
+                    distributedCache.RemoveAsync(key);
+                    value = default;
+                    return false;
+                }
         }
     }
 
