@@ -30,7 +30,7 @@ public class RedisCacheAdapter(IDistributedCache distributedCache) : IRedisCache
                 }
                 catch
                 {
-                    distributedCache.RemoveAsync(key);
+                    distributedCache.Remove(key);
                     value = default;
                     return false;
                 }
